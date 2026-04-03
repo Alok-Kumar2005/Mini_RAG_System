@@ -1,0 +1,18 @@
+[project]
+name = "mini-rag-system"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "langchain>=1.2.15",
+    "langchain-community>=0.4.1",
+    "langchain-core>=1.2.25",
+    "langchain-groq>=1.1.2",
+    "langchain-qdrant>=1.1.0",
+    "langgraph>=1.1.5",
+    "pydantic>=2.12.5",
+    "pypdf>=6.9.2",
+    "python-dotenv>=1.2.2",
+    "qdrant-client>=1.17.1",
+]

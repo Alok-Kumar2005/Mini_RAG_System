@@ -1,0 +1,10 @@
+langchain
+langgraph
+langchain-core
+langchain-groq
+langchain-community
+langchain-qdrant
+pypdf
+pydantic
+python-dotenv
+qdrant-client
