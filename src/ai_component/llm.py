@@ -4,6 +4,7 @@ from typing import Any, Type, Optional, Dict, Union
 from pydantic import BaseModel
 
 from langchain_groq import ChatGroq
+from langchain_core.messages import BaseMessage
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 
 from src.logger import logging
@@ -63,6 +64,26 @@ class LLMClient:
             return response
         except Exception as e:
             logging.error(f"Error in structured invocation: {str(e)}")
+            raise CustomException(e, sys) from e
+        
+    async def invoke_tool(
+            self, tools: list,
+            prompt: Union[str, ChatPromptTemplate, PromptTemplate],
+            variables: Optional[Dict[str, Any]] = None
+    )-> BaseMessage:
+        try:
+            logging.info(f"Calling LLM with tools: {tools}")
+            tool_llm = self.llm.bind_tools(tools)
+
+            if isinstance(prompt, (ChatPromptTemplate, PromptTemplate)):
+                chain = prompt | tool_llm
+                response = await chain.ainvoke(variables or {})
+            else:
+                response = await tool_llm.ainvoke(prompt)
+                
+            return response
+        except Exception as e:
+            logging.error(f"Error in tool LLM: {str(e)}")
             raise CustomException(e, sys) from e
         
 
