@@ -4,6 +4,7 @@ langchain-core
 langchain-groq
 langchain-community
 langchain-qdrant
+langchain-tavily
 pypdf
 pydantic
 python-dotenv
