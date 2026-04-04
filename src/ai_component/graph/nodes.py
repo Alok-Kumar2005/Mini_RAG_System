@@ -34,7 +34,10 @@ class Nodes:
                 prompt=template, 
                 variables={"chat_history": state["messages"]}
             )
-            return {"messages": [result]}
+            return {
+                "messages": [result],
+                "session_id": state.get("session_id", "")
+            }
                     
         except Exception as e:
             logging.error(f"Error in Query Node: {str(e)}")
@@ -62,7 +65,8 @@ class Nodes:
             state_update = {
                 "Judge_response": result.verdict,
                 "Judge_reason": result.reason,
-                "max_loop": current_loops
+                "max_loop": current_loops,
+                "session_id": state.get("session_id", "")
             }
             
             if result.verdict == "No" and current_loops < utils.max_tries: 

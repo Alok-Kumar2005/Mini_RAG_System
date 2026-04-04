@@ -26,7 +26,6 @@ class PDFSearchTool(BaseTool):
 
             logging.info(f"Running PDF Search tool with query: '{query}' on session: '{session_id}'")
             
-            # vector database logic
             embedder = get_embedder()
             query_vector = await asyncio.to_thread(
                 embedder.encode,
@@ -36,26 +35,29 @@ class PDFSearchTool(BaseTool):
             query_vector = query_vector[0].tolist()
 
             client = get_qdrant()
-            results = await client.search(
+            results = await client.query_points(
                 collection_name=session_id,
-                query_vector=query_vector,
+                query=query_vector,
                 limit=5,
                 with_payload=True,
             )
 
-            if not results:
+            points = list(results.points)
+
+            if not points:
                 return "No relevant information found in the document."
             
             context_parts = [
                 f"[Score: {round(hit.score, 3)}]\n{hit.payload.get('text', '')}"
-                for hit in results
+                for hit in points
                 if hit.payload and "text" in hit.payload
             ]
 
+            if not context_parts:
+                return "No relevant information found in the document."
+
             context = "\n\n---\n\n".join(context_parts)
-
-            logging.info(f"[PDFSearchTool] Retrieved {len(results)} chunks")
-
+            logging.info(f"[PDFSearchTool] Retrieved {len(context_parts)} chunks")
             return f"Relevant excerpts from the document:\n\n{context}"
 
         except Exception as e:
