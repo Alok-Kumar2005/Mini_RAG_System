@@ -9,3 +9,6 @@ pypdf
 pydantic
 python-dotenv
 qdrant-client
+
+langgraph-checkpoint-sqlite 
+aiosqlite

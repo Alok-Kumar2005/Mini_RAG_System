@@ -11,5 +11,7 @@ class Utils:
 
     TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 
+    max_tries: int = 3
+
 
 utils = Utils()
