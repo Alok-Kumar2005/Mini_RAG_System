@@ -12,3 +12,11 @@ qdrant-client
 
 langgraph-checkpoint-sqlite 
 aiosqlite
+
+fastapi
+uvicorn[standard]
+python-multipart
+sqlalchemy[asyncio]
+aiosqlite
+passlib[bcrypt]
+python-jose[cryptography]
