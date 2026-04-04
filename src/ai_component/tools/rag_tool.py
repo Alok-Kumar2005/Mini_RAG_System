@@ -62,12 +62,7 @@ class PDFSearchTool(BaseTool):
             logging.error(f"[PDFSearchTool] Error: {e}")
             return "Something went wrong while searching the document."
 
-    def _run(self, query: str, state: Dict[str, Any]) -> str:
-        try:
-            loop = asyncio.get_event_loop()
-            return loop.run_until_complete(self._arun(query, state))
-        except Exception as e:
-            logging.error(f"Error in PDF Search Tool sync method: {str(e)}")
-            return f"Sorry, I encountered an error: {str(e)}"
+    def _run(self, *args, **kwargs):
+        raise NotImplementedError("Use async version of this tool.")
 
 pdf_search_tool = PDFSearchTool()
