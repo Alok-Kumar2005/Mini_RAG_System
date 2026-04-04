@@ -9,7 +9,7 @@ from src.backend.users.schemas import RegisterRequest, LoginResponse, UserOut
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-@router.post("/regiter", response_model= UserOut, status_code= status.HTTP_201_CREATED)
+@router.post("/register", response_model= UserOut, status_code= status.HTTP_201_CREATED)
 async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.username == body.username))
     if result.scalar_one_or_none():

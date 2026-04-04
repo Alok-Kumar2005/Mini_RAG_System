@@ -1,0 +1,128 @@
+import json
+from typing import AsyncIterator
+from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from langchain_core.messages import HumanMessage
+from src.backend.database import get_db, Chat, User
+from src.ai_component.graph.graph import Workflow
+from src.ai_component.modules.db_memory import db_config
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+
+from src.logger import logging
+
+async def _get_chat_or_404(chat_id: str, user: User, db: AsyncSession)-> Chat:
+    result = await db.execute(select(Chat).where(Chat.id == chat_id, Chat.user_id == user.id))
+    chat = result.scalar_one_or_none()
+
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found.")
+    return chat
+
+def _sse(payload: dict) -> str:
+    return f"data: {json.dumps(payload)}\n\n"
+
+async def _stream_graph_events(chat: Chat,user_message: str) -> AsyncIterator[str]:
+    """
+    Runs the LangGraph workflow with astream_events (v2) and yields SSE strings.
+ 
+    Why astream_events v2:
+      - Gives fine-grained events per node, per tool, per LLM token
+      - Works correctly with subgraphs and ToolNode
+      - The `name` field on each event maps to the node/tool/model name
+ 
+    Event flow we handle:
+      on_chain_start  (name="query_node")   -> status "Thinking..."
+      on_chain_start  (name="judge_node")   -> status "Evaluating..."
+      on_tool_start                         -> status "Searching document/web..."
+      on_tool_end                           -> status "Search complete..."
+      on_chat_model_stream                  -> token  (streamed text)
+      on_chain_end    (name="judge_node")   -> retry event if verdict==No
+      on_chain_end    (name="LangGraph")    -> done   (final event)
+    """
+    checkpointer_ctx = AsyncSqliteSaver.from_conn_string(db_config.DB_PATH)
+    saver = await checkpointer_ctx.__aenter__()
+    graph = Workflow(checkpointer=saver)
+ 
+    config = {"configurable": {"thread_id": chat.id}}
+    initial_state = {
+        "messages": [HumanMessage(content=user_message)],
+        "session_id": chat.session_id or "",
+        "Judge_response": "",
+        "Judge_reason": "",
+        "max_loop": 0,
+    }
+
+    query_node_calls = 0
+ 
+    try:
+        async for event in graph.astream_events(initial_state, config=config, version="v2"):
+            kind: str = event["event"]
+            name: str = event.get("name", "")
+ 
+            # ── node starts ────────────────────────────────────────────────
+            if kind == "on_chain_start":
+                if name == "query_node":
+                    query_node_calls += 1
+                    if query_node_calls == 1:
+                        yield _sse({"type": "status", "message": "Thinking…"})
+                    # If query_node_calls > 1, a "retry" event was already sent
+                    # by the judge_node handler below — no duplicate status needed.
+ 
+                elif name == "judge_node":
+                    yield _sse({"type": "status", "message": "Evaluating answer quality…"})
+ 
+            # ── tool calls ─────────────────────────────────────────────────
+            elif kind == "on_tool_start":
+                tool_name = name or ""
+                friendly = {
+                    "search_pdf_tool": "Searching the uploaded document…",
+                    "tavily_search":   "Searching the web…",
+                }.get(tool_name, f"Running {tool_name}…")
+                yield _sse({"type": "status", "message": friendly, "tool": tool_name})
+ 
+            elif kind == "on_tool_end":
+                yield _sse({"type": "status", "message": "Search complete, composing answer…"})
+ 
+            # ── LLM token streaming ────────────────────────────────────────
+            elif kind == "on_chat_model_stream":
+                chunk = event["data"].get("chunk")
+                if chunk and hasattr(chunk, "content"):
+                    content = chunk.content
+                    # content can be a str or a list (tool-call chunks) — only yield strings
+                    if isinstance(content, str) and content:
+                        yield _sse({"type": "token", "content": content})
+ 
+            # ── judge node finished ────────────────────────────────────────
+            elif kind == "on_chain_end" and name == "judge_node":
+                output: dict = event["data"].get("output", {})
+                verdict: str = output.get("Judge_response", "")
+                reason: str  = output.get("Judge_reason", "")
+ 
+                if verdict == "No":
+                    # Tell the frontend to discard the partial/bad answer and show a retry indicator
+                    yield _sse({
+                        "type": "retry",
+                        "reason": reason,
+                        "attempt": query_node_calls,
+                    })
+ 
+            # ── entire graph finished ──────────────────────────────────────
+            elif kind == "on_chain_end" and name == "LangGraph":
+                output: dict = event["data"].get("output", {})
+                yield _sse({
+                    "type": "done",
+                    "judge_verdict": output.get("Judge_response"),
+                    "judge_reason":  output.get("Judge_reason"),
+                })
+ 
+    except Exception as exc:
+        logging.error(f"[Stream] Graph error for chat {chat.id}: {exc}")
+        yield _sse({"type": "error", "message": "AI processing failed. Please try again."})
+ 
+    finally:
+        # Always close the checkpointer — even on client disconnect or exception
+        try:
+            await checkpointer_ctx.__aexit__(None, None, None)
+        except Exception:
+            pass

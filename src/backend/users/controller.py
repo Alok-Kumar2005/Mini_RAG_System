@@ -11,12 +11,24 @@ from sqlalchemy import select
 from src.backend.database import get_db, User
 from src.utils import utils
 
-pwd_context = CryptContext(schemes=['bcrypt'])
+from pwdlib import PasswordHash
+from pwdlib.hashers.bcrypt import BcryptHasher
+
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl= '/api/auth/login')
+# pwd_context = CryptContext(schemes=['bcrypt'])
+
+# def hash_password(password: str) -> str:
+#     return pwd_context.hash(password)
+ 
+ 
+# def verify_password(plain: str, hashed: str) -> bool:
+#     return pwd_context.verify(plain, hashed)
+
+pwd_context = PasswordHash((BcryptHasher(),))
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
- 
  
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)

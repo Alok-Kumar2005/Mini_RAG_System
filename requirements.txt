@@ -14,11 +14,13 @@ langgraph-checkpoint-sqlite
 aiosqlite
 
 fastapi
+fastapi[standard]
 uvicorn[standard]
 python-multipart
 sqlalchemy[asyncio]
 aiosqlite
 passlib[bcrypt]
 python-jose[cryptography]
+pwdlib[bcrypt]
 
 sentence-transformers
