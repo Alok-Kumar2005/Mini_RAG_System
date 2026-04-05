@@ -14,6 +14,7 @@ from src.backend.ingestion import ingest_pdf
 from src.ai_component.graph.graph import Workflow
 from src.ai_component.modules.db_memory import db_config
 from src.backend.tasks.controller import _get_chat_or_404, _sse, _stream_graph_events
+from src.ai_component.llm import LLMClient
 
 from src.logger import logging
 
@@ -80,9 +81,9 @@ async def upload_pdf(chat_id: str, file: UploadFile = File(...), db: AsyncSessio
         message=f"Successfully ingested '{file.filename}' ({chunks} chunks).",
     )
  
-@router.patch('/{chat_id}/rename', response_model= Chat)
+@router.patch('/{chat_id}/rename', response_model= ChatOut)
 async def rename_chat(chat_id: str, body: ChatRename, db: AsyncIterator = Depends(get_db), current_user: User = Depends(get_current_user)):
-    result = await db.execute(select(Chat).where(Chat.id == chat_id, User.id == current_user.id))
+    result = await db.execute(select(Chat).where(Chat.id == chat_id, Chat.user_id == current_user.id))
     chat = result.scalar_one_or_none()
 
     if not chat:
@@ -105,6 +106,13 @@ async def send_message(
     current_user: User = Depends(get_current_user),
 ):
     chat = await _get_chat_or_404(chat_id, current_user, db)
+    # logging.info(f"[Chat title] : {chat.title}")
+    if chat.title == "New Chat":
+        client = LLMClient(temperature= 0, max_tokens= 150)
+        new_title = await client.generate_chat_title(body.content)
+        chat.title = new_title
+        await db.commit()
+        await db.refresh(chat)
  
     async def generator():
         async for chunk in _stream_graph_events(chat, body.content):

@@ -86,6 +86,16 @@ class LLMClient:
             logging.error(f"Error in tool LLM: {str(e)}")
             raise CustomException(e, sys) from e
         
+    async def generate_chat_title(self, user_message: str)-> str:
+        prompt = f"""Generate a short chat title (max 5 words) for a conversation that starts with this message:
+"{user_message}"
+Rules:
+- Max 5 words
+- No quotes, no punctuation at end
+- Title case
+- Return ONLY the title, nothing else"""
+        titlle = await self.invoke(prompt)
+        return titlle.strip()[:100]
 
 import asyncio
 from pydantic import BaseModel, Field
@@ -96,37 +106,42 @@ class UserProfile(BaseModel):
 
 async def main():
     client = LLMClient(temperature=0.2)
-    print("--- Scenario 1: Simple ---")
-    simple_result = await client.invoke("What is the capital of Japan?")
-    print(simple_result)
+    # print("--- Scenario 1: Simple ---")
+    # simple_result = await client.invoke("What is the capital of Japan?")
+    # print(simple_result)
 
-    print("\n--- Scenario 2: Template ---")
-    template = ChatPromptTemplate.from_messages([
-        ("system", "You are a helpful travel guide."),
-        ("human", "Give me {count} tourist spots in {city}.")
-    ])
-    template_result = await client.invoke_with_template(
-        prompt_template=template, 
-        variables={"count": 3, "city": "Paris"}
-    )
-    print(template_result)
+    # print("\n--- Scenario 2: Template ---")
+    # template = ChatPromptTemplate.from_messages([
+    #     ("system", "You are a helpful travel guide."),
+    #     ("human", "Give me {count} tourist spots in {city}.")
+    # ])
+    # template_result = await client.invoke_with_template(
+    #     prompt_template=template, 
+    #     variables={"count": 3, "city": "Paris"}
+    # )
+    # print(template_result)
 
-    print("\n--- Scenario 3: Structured Output ---")
-    structured_str_result = await client.invoke_structured(
-        schema=UserProfile,
-        prompt="My name is John, I am 28 years old and I love reading and hiking."
-    )
-    print(f"Name: {structured_str_result.name}, Hobbies: {structured_str_result.hobbies}")
+    # print("\n--- Scenario 3: Structured Output ---")
+    # structured_str_result = await client.invoke_structured(
+    #     schema=UserProfile,
+    #     prompt="My name is John, I am 28 years old and I love reading and hiking."
+    # )
+    # print(f"Name: {structured_str_result.name}, Hobbies: {structured_str_result.hobbies}")
 
-    structured_template = ChatPromptTemplate.from_template(
-        "Extract the user profile from this text: {text}"
-    )
-    structured_tpl_result = await client.invoke_structured(
-        schema=UserProfile,
-        prompt=structured_template,
-        variables={"text": "Sarah is a 32-year-old software engineer who enjoys painting."}
-    )
-    print(f"Name: {structured_tpl_result.name}, Age: {structured_tpl_result.age}")
+    # structured_template = ChatPromptTemplate.from_template(
+    #     "Extract the user profile from this text: {text}"
+    # )
+    # structured_tpl_result = await client.invoke_structured(
+    #     schema=UserProfile,
+    #     prompt=structured_template,
+    #     variables={"text": "Sarah is a 32-year-old software engineer who enjoys painting."}
+    # )
+    # print(f"Name: {structured_tpl_result.name}, Age: {structured_tpl_result.age}")
+
+    print("\n -------- Scenario 4: Title Genreation --------")
+    user_message = "Why inda is famous in the world?"
+    result = await client.generate_chat_title(user_message)
+    print(result)
 
 if __name__ == "__main__":
     asyncio.run(main())
