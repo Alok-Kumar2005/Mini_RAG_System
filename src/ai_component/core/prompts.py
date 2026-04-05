@@ -32,3 +32,20 @@ Rules:
 - 'No' → if the response is incorrect, incomplete, or irrelevant
 - Keep the reason concise (1-2 lines)
 """
+
+summarizer_prompt1 = """
+You are a helpful AI assistant. Your task is to update an existing conversation summary 
+by incorporating the new messages below. Preserve all important information — do not lose 
+any key facts, decisions, or context.
+
+Conversation to incorporate:
+{existing_conversation}
+"""
+
+summarizer_prompt2 = """
+You are a helpful AI assistant. Your task is to summarise the conversation below. 
+Preserve all important information — do not lose any key facts, decisions, or context.
+
+Conversation:
+{existing_conversation}
+"""

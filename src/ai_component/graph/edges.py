@@ -14,7 +14,12 @@ def route_after_query(state: GraphState) -> str:
 def route_after_judge(state: GraphState) -> str:
     verdict = state.get('Judge_response', 'No')
     loops = state.get('max_loop', 0)
-    
-    if verdict == 'Yes' or loops >= utils.max_tries:
-        return '__end__'
-    return 'query_node'
+    message_count = len(state.get('messages', []))
+
+    if verdict == 'No' and loops < utils.max_tries:
+        return 'query_node'
+
+    if message_count > utils.MAX_CONVERSATION:
+        return 'summarizer_node'
+
+    return '__end__'

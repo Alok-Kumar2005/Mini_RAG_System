@@ -21,4 +21,7 @@ class Utils:
     ALGORITHM = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES = 60*24
 
+    MAX_CONTEXT: int = 2000
+    MAX_CONVERSATION: int = 15
+
 utils = Utils()

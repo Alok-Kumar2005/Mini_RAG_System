@@ -8,3 +8,4 @@ class GraphState(TypedDict):
     Judge_response: str
     Judge_reason: str
     max_loop: int  ## to handle the loop of LLM judge and QueryNode
+    summarize: str

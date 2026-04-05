@@ -14,12 +14,17 @@ from src.exceptions import CustomException
 tools_node = ToolNode(tools=[pdf_search_tool, web_tool])
 
 def Workflow(checkpointer = None):
-    builder = StateGraph(GraphState)
+    builder = StateGraph(
+        GraphState,
+        input=GraphState,
+        config_schema=None,
+    )
     my_nodes = Nodes()
 
     # add nodes
     builder.add_node("query_node", my_nodes.QueryNode)
     builder.add_node("judge_node", my_nodes.LLMJudgeNode)
+    builder.add_node("summarizer_node", my_nodes.summarizer)
     builder.add_node("tools", tools_node)
 
     # add edges
@@ -39,8 +44,21 @@ def Workflow(checkpointer = None):
         route_after_judge,
         {
             "query_node": "query_node",
-            "__end__": END
-        }
+            "summarizer_node": "summarizer_node",
+            "__end__": END,
+        },
     )
+    builder.add_edge("summarizer_node", END)
 
     return builder.compile(checkpointer=checkpointer)
+
+
+def save_graph_image():
+    graph = Workflow()
+    drawable = graph.get_graph()
+    png_bytes = drawable.draw_mermaid_png()
+    with open("workflow_graph.png", "wb") as f:
+        f.write(png_bytes)
+
+if __name__ == "__main__":
+    save_graph_image()

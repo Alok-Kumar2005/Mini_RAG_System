@@ -143,7 +143,9 @@ async def get_history(chat_id: str,db: AsyncSession = Depends(get_db),current_us
     if not checkpoint:
         return {"messages": []}
  
-    raw_messages = checkpoint.get("channel_values", {}).get("messages", [])
+    channel_values = checkpoint.get("channel_values", {})
+    raw_messages = channel_values.get("messages", [])
+    summary = channel_values.get("summarize") or None 
     history = []
     for m in raw_messages:
         if isinstance(m, HumanMessage):
@@ -152,6 +154,6 @@ async def get_history(chat_id: str,db: AsyncSession = Depends(get_db),current_us
             history.append({"role": "user", "content": m.content})
         elif isinstance(m, AIMessage):
             history.append({"role": "assistant", "content": m.content})
- 
-    return {"messages": history}
+
+    return {"messages": history, "summary": summary}
  

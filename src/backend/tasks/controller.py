@@ -43,7 +43,7 @@ async def _stream_graph_events(chat: Chat,user_message: str) -> AsyncIterator[st
     checkpointer_ctx = AsyncSqliteSaver.from_conn_string(db_config.DB_PATH)
     saver = await checkpointer_ctx.__aenter__()
     graph = Workflow(checkpointer=saver)
- 
+
     config = {"configurable": {"thread_id": chat.id}}
     initial_state = {
         "messages": [HumanMessage(content=user_message)],
@@ -54,25 +54,26 @@ async def _stream_graph_events(chat: Chat,user_message: str) -> AsyncIterator[st
     }
 
     query_node_calls = 0
- 
+
     try:
         async for event in graph.astream_events(initial_state, config=config, version="v2"):
             kind: str = event["event"]
             name: str = event.get("name", "")
- 
-            # ── node starts ────────────────────────────────────────────────
+
+            # ── node starts ──────────────────────────────────────────────
             if kind == "on_chain_start":
                 if name == "query_node":
                     query_node_calls += 1
                     if query_node_calls == 1:
                         yield _sse({"type": "status", "message": "Thinking…"})
-                    # If query_node_calls > 1, a "retry" event was already sent
-                    # by the judge_node handler below — no duplicate status needed.
- 
+
                 elif name == "judge_node":
                     yield _sse({"type": "status", "message": "Evaluating answer quality…"})
- 
-            # ── tool calls ─────────────────────────────────────────────────
+
+                elif name == "summarizer_node":
+                    yield _sse({"type": "status", "message": "Summarising conversation…"})
+
+            # ── tool calls ───────────────────────────────────────────────
             elif kind == "on_tool_start":
                 tool_name = name or ""
                 friendly = {
@@ -80,34 +81,36 @@ async def _stream_graph_events(chat: Chat,user_message: str) -> AsyncIterator[st
                     "tavily_search":   "Searching the web…",
                 }.get(tool_name, f"Running {tool_name}…")
                 yield _sse({"type": "status", "message": friendly, "tool": tool_name})
- 
+
             elif kind == "on_tool_end":
                 yield _sse({"type": "status", "message": "Search complete, composing answer…"})
- 
-            # ── LLM token streaming ────────────────────────────────────────
+
+            # ── LLM token streaming ──────────────────────────────────────
             elif kind == "on_chat_model_stream":
                 chunk = event["data"].get("chunk")
                 if chunk and hasattr(chunk, "content"):
                     content = chunk.content
-                    # content can be a str or a list (tool-call chunks) — only yield strings
                     if isinstance(content, str) and content:
                         yield _sse({"type": "token", "content": content})
- 
-            # ── judge node finished ────────────────────────────────────────
+
+            # ── judge node finished ──────────────────────────────────────
             elif kind == "on_chain_end" and name == "judge_node":
                 output: dict = event["data"].get("output", {})
                 verdict: str = output.get("Judge_response", "")
                 reason: str  = output.get("Judge_reason", "")
- 
+
                 if verdict == "No":
-                    # Tell the frontend to discard the partial/bad answer and show a retry indicator
                     yield _sse({
                         "type": "retry",
                         "reason": reason,
                         "attempt": query_node_calls,
                     })
- 
-            # ── entire graph finished ──────────────────────────────────────
+
+            # ── summarizer node finished ─────────────────────────────────
+            elif kind == "on_chain_end" and name == "summarizer_node":
+                yield _sse({"type": "status", "message": "Conversation summarised."})
+
+            # ── entire graph finished ────────────────────────────────────
             elif kind == "on_chain_end" and name == "LangGraph":
                 output: dict = event["data"].get("output", {})
                 yield _sse({
@@ -115,13 +118,12 @@ async def _stream_graph_events(chat: Chat,user_message: str) -> AsyncIterator[st
                     "judge_verdict": output.get("Judge_response"),
                     "judge_reason":  output.get("Judge_reason"),
                 })
- 
+
     except Exception as exc:
         logging.error(f"[Stream] Graph error for chat {chat.id}: {exc}")
         yield _sse({"type": "error", "message": "AI processing failed. Please try again."})
- 
+
     finally:
-        # Always close the checkpointer — even on client disconnect or exception
         try:
             await checkpointer_ctx.__aexit__(None, None, None)
         except Exception:
