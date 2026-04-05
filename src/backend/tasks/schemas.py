@@ -31,3 +31,5 @@ class UploadResponse(BaseModel):
     chunks_ingested: int
     message: str
  
+class ChatRename(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)

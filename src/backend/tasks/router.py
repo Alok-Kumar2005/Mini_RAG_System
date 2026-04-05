@@ -9,7 +9,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from src.backend.database import get_db, Chat, User
 from src.backend.users.controller import get_current_user
-from src.backend.tasks.schemas import ChatCreate, ChatOut, MessageRequest, UploadResponse
+from src.backend.tasks.schemas import ChatCreate, ChatOut, MessageRequest, UploadResponse, ChatRename
 from src.backend.ingestion import ingest_pdf
 from src.ai_component.graph.graph import Workflow
 from src.ai_component.modules.db_memory import db_config
@@ -69,8 +69,8 @@ async def upload_pdf(chat_id: str, file: UploadFile = File(...), db: AsyncSessio
  
     chat.session_id = session_id
     chat.pdf_filename = file.filename
-    if chat.title == "New Chat":
-        chat.title = file.filename.replace(".pdf", "")
+    # if chat.title == "New Chat":
+    #     chat.title = file.filename.replace(".pdf", "")
     await db.commit()
     await db.refresh(chat)
  
@@ -80,6 +80,17 @@ async def upload_pdf(chat_id: str, file: UploadFile = File(...), db: AsyncSessio
         message=f"Successfully ingested '{file.filename}' ({chunks} chunks).",
     )
  
+@router.patch('/{chat_id}/rename', response_model= Chat)
+async def rename_chat(chat_id: str, body: ChatRename, db: AsyncIterator = Depends(get_db), current_user: User = Depends(get_current_user)):
+    result = await db.execute(select(Chat).where(Chat.id == chat_id, User.id == current_user.id))
+    chat = result.scalar_one_or_none()
+
+    if not chat:
+        raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail= "Chat not found.. ")
+    chat.title = body.title
+    await db.commit()
+    await db.refresh(chat)
+    return chat
  
 # ---------------------------------------------------------------------------
 # Streaming Message endpoint
