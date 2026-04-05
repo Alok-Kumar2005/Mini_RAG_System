@@ -26,6 +26,7 @@ export default function ChatArea({ params }: ComponentProps) {
   const [chatInfo, setChatInfo] = useState<any>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamStatus, setStreamStatus] = useState<string | null>(null);
+  const [summary, setSummary] = useState<string | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -34,10 +35,11 @@ export default function ChatArea({ params }: ComponentProps) {
     try {
       const [info, history] = await Promise.all([
         api.get(`/chats/${chatId}`),
-        api.get<{ messages: Message[] }>(`/chats/${chatId}/history`)
+        api.get<{ messages: Message[], summary?: string }>(`/chats/${chatId}/history`)
       ]);
       setChatInfo(info);
       setMessages(history.messages || []);
+      setSummary(history.summary || null);
       scrollToBottom();
     } catch (err) {
       console.error('Failed to load chat data', err);
@@ -135,6 +137,11 @@ export default function ChatArea({ params }: ComponentProps) {
     } finally {
       setIsStreaming(false);
       setStreamStatus(null);
+      
+      // The backend might have used an LLM to generate a new chat title on the first message
+      // Let's refresh the current header and tell the Sidebar to refresh too!
+      fetchChatData();
+      window.dispatchEvent(new Event('chatUpdated'));
     }
   };
 
@@ -172,6 +179,12 @@ export default function ChatArea({ params }: ComponentProps) {
       </div>
 
       <div className="messages-area">
+        {summary && (
+          <div className="summary-banner">
+            <strong>Previous Context Summary:</strong> {summary}
+          </div>
+        )}
+        
         {messages.length === 0 ? (
           <div className="empty-chat-state">
             <div className="empty-chat-icon">
@@ -181,8 +194,13 @@ export default function ChatArea({ params }: ComponentProps) {
             <p>Upload a document using the + button to enable context-aware capabilities.</p>
           </div>
         ) : (
-          messages.map((msg, idx) => {
-            const isLastAssistant = idx === messages.length - 1 && msg.role === 'assistant';
+          messages.filter((msg, idx) => {
+            if (msg.role === 'user') return true;
+            if (isStreaming && idx === messages.length - 1) return true;
+            if (msg.content && msg.content.trim() !== '') return true;
+            return false;
+          }).map((msg, idx, filteredArr) => {
+            const isLastAssistant = msg === filteredArr[filteredArr.length - 1] && msg.role === 'assistant';
             const showStatus = isLastAssistant && isStreaming && (!msg.content || streamStatus);
             
             return (
@@ -629,6 +647,21 @@ export default function ChatArea({ params }: ComponentProps) {
         .markdown-body pre code {
           background-color: transparent;
           padding: 0;
+        }
+
+        .summary-banner {
+          padding: 1rem;
+          border-radius: 8px;
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px dashed var(--panel-border);
+          margin-bottom: 1rem;
+          line-height: 1.5;
+        }
+
+        .summary-banner strong {
+          color: var(--accent-primary);
         }
       `}</style>
     </div>

@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '@/services/api';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { MessageSquarePlus, MessageCircle, LogOut, FileText } from 'lucide-react';
+import { MessageSquarePlus, MessageCircle, LogOut, FileText, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export interface Chat {
@@ -24,6 +24,19 @@ export default function Sidebar({ onChatSelected }: SidebarProps) {
   const router = useRouter();
   const { logout, user } = useAuth();
   const [isCreating, setIsCreating] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if ((e.target as Element).closest('.chat-actions-container')) {
+        return;
+      }
+      setActiveDropdown(null);
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   const fetchChats = async () => {
     try {
@@ -36,7 +49,10 @@ export default function Sidebar({ onChatSelected }: SidebarProps) {
 
   useEffect(() => {
     fetchChats();
-  }, [pathname]); // Refetch if navigation changes (new chat created)
+    const handleUpdate = () => fetchChats();
+    window.addEventListener('chatUpdated', handleUpdate);
+    return () => window.removeEventListener('chatUpdated', handleUpdate);
+  }, [pathname]); // Refetch if navigation changes or if explicitly triggered
 
   const handleNewChat = async () => {
     setIsCreating(true);
@@ -48,6 +64,36 @@ export default function Sidebar({ onChatSelected }: SidebarProps) {
       console.error(err);
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const handleRename = async (chatId: string, oldTitle: string) => {
+    setActiveDropdown(null);
+    const newTitle = prompt('Enter new chat title:', oldTitle);
+    if (!newTitle || newTitle === oldTitle) return;
+
+    try {
+      await api.patch(`/chats/${chatId}/rename`, { title: newTitle });
+      setChats(prev => prev.map(c => c.id === chatId ? { ...c, title: newTitle } : c));
+    } catch (err) {
+      console.error('Failed to rename chat:', err);
+      alert('Failed to rename chat');
+    }
+  };
+
+  const handleDelete = async (chatId: string) => {
+    setActiveDropdown(null);
+    if (!confirm('Are you sure you want to delete this chat?')) return;
+
+    try {
+      await api.delete(`/chats/${chatId}`);
+      setChats(prev => prev.filter(c => c.id !== chatId));
+      if (pathname === `/c/${chatId}`) {
+        router.push('/');
+      }
+    } catch (err) {
+      console.error('Failed to delete chat:', err);
+      alert('Failed to delete chat');
     }
   };
 
@@ -72,21 +118,46 @@ export default function Sidebar({ onChatSelected }: SidebarProps) {
           chats.map(chat => {
             const isActive = pathname === `/c/${chat.id}`;
             return (
-              <Link 
-                href={`/c/${chat.id}`} 
-                key={chat.id}
-                className={`chat-item ${isActive ? 'active' : ''}`}
-              >
-                <MessageCircle size={18} className="chat-icon" />
-                <div className="chat-info">
-                  <span className="chat-title" title={chat.title}>{chat.title}</span>
-                  {chat.pdf_filename && (
-                    <span className="chat-subtitle">
-                      <FileText size={12} /> {chat.pdf_filename}
-                    </span>
+              <div key={chat.id} className={`chat-item ${isActive ? 'active' : ''}`}>
+                <Link 
+                  href={`/c/${chat.id}`} 
+                  className="chat-link"
+                >
+                  <MessageCircle size={18} className="chat-icon" />
+                  <div className="chat-info">
+                    <span className="chat-title" title={chat.title}>{chat.title}</span>
+                    {chat.pdf_filename && (
+                      <span className="chat-subtitle">
+                        <FileText size={12} /> {chat.pdf_filename}
+                      </span>
+                    )}
+                  </div>
+                </Link>
+                
+                <div className="chat-actions-container">
+                  <button 
+                    className="btn-icon action-trigger"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setActiveDropdown(activeDropdown === chat.id ? null : chat.id);
+                    }}
+                  >
+                    <MoreVertical size={16} />
+                  </button>
+                  
+                  {activeDropdown === chat.id && (
+                    <div className="dropdown-menu glass-panel animate-fade-in" onClick={e => e.stopPropagation()}>
+                      <button className="dropdown-item" onClick={(e) => { e.preventDefault(); handleRename(chat.id, chat.title); }}>
+                        <Pencil size={14} /> <span>Rename</span>
+                      </button>
+                      <button className="dropdown-item danger" onClick={(e) => { e.preventDefault(); handleDelete(chat.id); }}>
+                        <Trash2 size={14} /> <span>Delete</span>
+                      </button>
+                    </div>
                   )}
                 </div>
-              </Link>
+              </div>
             );
           })
         )}
@@ -151,10 +222,22 @@ export default function Sidebar({ onChatSelected }: SidebarProps) {
         .chat-item {
           display: flex;
           align-items: center;
-          gap: 0.75rem;
-          padding: 0.75rem 1.5rem;
+          justify-content: space-between;
+          padding: 0.5rem 0.5rem 0.5rem 1rem;
           color: var(--text-secondary);
           transition: all 0.2s ease;
+          position: relative;
+        }
+
+        .chat-link {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          flex: 1;
+          min-width: 0;
+          color: inherit;
+          text-decoration: none;
+          padding: 0.25rem 0;
         }
 
         .chat-item:hover {
@@ -173,9 +256,11 @@ export default function Sidebar({ onChatSelected }: SidebarProps) {
         }
 
         .chat-info {
+          flex: 1;
           display: flex;
           flex-direction: column;
           overflow: hidden;
+          min-width: 0;
         }
 
         .chat-title {
@@ -224,6 +309,66 @@ export default function Sidebar({ onChatSelected }: SidebarProps) {
 
         .logout-btn:hover {
           color: var(--danger);
+          background: rgba(239, 68, 68, 0.1);
+        }
+
+        .chat-actions-container {
+          position: relative;
+          flex-shrink: 0;
+          margin-left: 0.5rem;
+        }
+
+        .action-trigger {
+          width: 28px;
+          height: 28px;
+          opacity: 0.4;
+          transition: opacity 0.2s ease, background 0.2s ease, color 0.2s ease;
+        }
+
+        .chat-item:hover .action-trigger, .action-trigger:focus {
+          opacity: 1;
+        }
+
+        .dropdown-menu {
+          position: absolute;
+          top: 100%;
+          right: 0;
+          z-index: 9999;
+          min-width: 140px;
+          padding: 0.5rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+          margin-top: 0.25rem;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .dropdown-item {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          width: 100%;
+          padding: 0.5rem 0.75rem;
+          border: none;
+          background: transparent;
+          color: var(--text-primary);
+          border-radius: 6px;
+          font-family: inherit;
+          cursor: pointer;
+          transition: background 0.2s ease;
+          font-size: 0.85rem;
+          text-align: left;
+        }
+
+        .dropdown-item:hover {
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        .dropdown-item.danger {
+          color: var(--danger);
+        }
+
+        .dropdown-item.danger:hover {
           background: rgba(239, 68, 68, 0.1);
         }
       `}</style>
