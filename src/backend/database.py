@@ -4,14 +4,17 @@ from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
+from src.utils import utils
+
 BASE_DIR = __import__("os").path.abspath(
     __import__("os").path.join(__import__("os").path.dirname(__file__), "..", "..")
 )
-DATABASE_URL = f"sqlite+aiosqlite:///{BASE_DIR}/app.db"
+# DATABASE_URL = f"sqlite+aiosqlite:///{BASE_DIR}/app.db"
+DATABASE_URL = utils.DATABASE_URL
  
-engine = create_async_engine(DATABASE_URL, echo=False)
+# engine = create_async_engine(DATABASE_URL, echo=False)
+engine = create_async_engine(DATABASE_URL, echo=False)  # psycopg handles sslmode natively
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
- 
  
 class Base(DeclarativeBase):
     pass

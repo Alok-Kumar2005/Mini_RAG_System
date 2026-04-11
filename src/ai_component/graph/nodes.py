@@ -27,6 +27,14 @@ class Nodes:
             if not messages:
                 return {"messages": []}
             
+            session_id = state.get("session_id", "")
+            
+            # Dynamic system prompt based on whether a PDF is loaded
+            if session_id:
+                dynamic_prompt = system_prompt + f"\n\nA document is currently loaded (session: active). You MUST use search_pdf_tool to answer any document-related questions. Do NOT answer from memory."
+            else:
+                dynamic_prompt = system_prompt + "\n\nNo document is currently uploaded. Inform the user they need to upload a PDF first if they ask document questions."
+
             messages_for_trim = []
             summary = state.get("summarize", "")
             if summary:
@@ -44,7 +52,7 @@ class Nodes:
             )
                 
             template = ChatPromptTemplate.from_messages([
-                ("system", system_prompt),
+                ("system", dynamic_prompt),
                 MessagesPlaceholder(variable_name="chat_history"),
             ])
             result = await self.client.invoke_tool(
@@ -54,7 +62,7 @@ class Nodes:
             )
             return {
                 "messages": [result],
-                "session_id": state.get("session_id", ""),
+                "session_id": session_id,
             }
 
         except Exception as e:

@@ -15,6 +15,7 @@ from src.ai_component.graph.graph import Workflow
 from src.ai_component.modules.db_memory import db_config
 from src.backend.tasks.controller import _get_chat_or_404, _sse, _stream_graph_events
 from src.ai_component.llm import LLMClient
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from src.logger import logging
 
@@ -136,7 +137,10 @@ async def send_message(
 async def get_history(chat_id: str,db: AsyncSession = Depends(get_db),current_user: User = Depends(get_current_user)):
     await _get_chat_or_404(chat_id, current_user, db)
  
-    async with AsyncSqliteSaver.from_conn_string(db_config.DB_PATH) as checkpointer:
+    # async with AsyncSqliteSaver.from_conn_string(db_config.DB_PATH) as checkpointer:
+    #     config = {"configurable": {"thread_id": chat_id}}
+    #     checkpoint = await checkpointer.aget(config)
+    async with AsyncPostgresSaver.from_conn_string(db_config.PG_CONN) as checkpointer:
         config = {"configurable": {"thread_id": chat_id}}
         checkpoint = await checkpointer.aget(config)
  

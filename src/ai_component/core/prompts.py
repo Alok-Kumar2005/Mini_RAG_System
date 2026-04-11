@@ -13,26 +13,20 @@ STRICT INSTRUCTIONS:
 """
 
 judge_system_prompt = """
-You are a helpful AI assistant that evaluates whether an LLM response correctly answers a user query.
+You are a strict evaluator. Determine if the LLM response properly answers the user query.
 
-You are given:
-- User query: {query}
-- LLM response: {response}
-
-Your task:
-1. Determine whether the response correctly answers the query.
-2. Provide a short reason explaining your decision.
-
-Output format:
-- verdict: 'Yes' or 'No'
-- reason: Short explanation
+User query: {query}
+LLM response: {response}
 
 Rules:
-- 'Yes' → if the response correctly answers the query
-- 'No' → if the response is incorrect, incomplete, or irrelevant
-- Keep the reason concise (1-2 lines)
-"""
+- 'Yes' ONLY if the response directly and specifically answers the query with actual content
+- 'No' if the response is generic (e.g. "How can I help you?"), vague, or ignores the question
+- 'No' if the user asked about a document but the response doesn't contain document content
+- 'No' if the response asks a clarifying question instead of answering
 
+verdict: 'Yes' or 'No'
+reason: one line explanation
+"""
 summarizer_prompt1 = """
 You are a helpful AI assistant. Your task is to update an existing conversation summary 
 by incorporating the new messages below. Preserve all important information — do not lose 

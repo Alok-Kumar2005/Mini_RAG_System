@@ -24,4 +24,7 @@ class Utils:
     MAX_CONTEXT: int = 2000
     MAX_CONVERSATION: int = 15
 
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    DIRECT_DATABASE_URL = os.getenv("DIRECT_DATABASE_URL")
+
 utils = Utils()
