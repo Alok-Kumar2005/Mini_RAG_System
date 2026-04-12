@@ -37,8 +37,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
 
-# Render sets PORT; Next.js standalone reads it automatically
+# Render sets PORT; Next.js standalone needs HOSTNAME=0.0.0.0 to accept connections
 ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 EXPOSE ${PORT}
 
 CMD ["node", "server.js"]
