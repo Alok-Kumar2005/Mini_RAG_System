@@ -6,7 +6,6 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from langchain_core.messages import HumanMessage, AIMessage
-from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from src.backend.database import get_db, Chat, User
 from src.backend.users.controller import get_current_user
 from src.backend.tasks.schemas import ChatCreate, ChatOut, MessageRequest, UploadResponse, ChatRename

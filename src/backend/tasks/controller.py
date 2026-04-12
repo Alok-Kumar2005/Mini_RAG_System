@@ -7,7 +7,6 @@ from langchain_core.messages import HumanMessage
 from src.backend.database import get_db, Chat, User
 from src.ai_component.graph.graph import Workflow
 from src.ai_component.modules.db_memory import db_config
-from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from src.logger import logging
