@@ -6,24 +6,25 @@ from typing import List
 from pypdf import PdfReader
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
-from sentence_transformers import SentenceTransformer
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 from src.utils import utils
 from src.logger import logging
 
 
-# -----------------------------
-# GLOBAL SINGLETONS
-# -----------------------------
-_embedder: SentenceTransformer | None = None
+_embedder: GoogleGenerativeAIEmbeddings | None = None
 _qdrant: AsyncQdrantClient | None = None
 
 
-def get_embedder() -> SentenceTransformer:
+def get_embedder() -> GoogleGenerativeAIEmbeddings:
     global _embedder
     if _embedder is None:
-        logging.info(f"Loading embedding model: {utils.EMBEDDING_MODEL}")
-        _embedder = SentenceTransformer(utils.EMBEDDING_MODEL)
+        logging.info(f"Loading embedding model: {utils.GEMINI_EMBED_MODEL}")
+        _embedder = GoogleGenerativeAIEmbeddings(
+            model=utils.GEMINI_EMBED_MODEL,
+            api_key=utils.GEMINI_API_KEY,
+            output_dimensionality=utils.GEMINI_OUTPUT_DIMS
+        )
     return _embedder
 
 
@@ -37,9 +38,6 @@ def get_qdrant() -> AsyncQdrantClient:
     return _qdrant
 
 
-# -----------------------------
-# TEXT CHUNKING
-# -----------------------------
 def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]:
     chunks = []
     start = 0
@@ -54,14 +52,8 @@ def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]
     return chunks
 
 
-# -----------------------------
-# PDF INGESTION PIPELINE
-# -----------------------------
 async def ingest_pdf(file_bytes: bytes, session_id: str) -> int:
     try:
-        # -----------------------------
-        # Extract text from PDF
-        # -----------------------------
         reader = PdfReader(io.BytesIO(file_bytes))
 
         texts = []
@@ -73,33 +65,20 @@ async def ingest_pdf(file_bytes: bytes, session_id: str) -> int:
         if not full_text.strip():
             raise ValueError("Could not extract any text from the PDF.")
 
-        # -----------------------------
-        # Chunking
-        # -----------------------------
         chunks = chunk_text(full_text)
         logging.info(f"[Ingestion] {len(chunks)} chunks created for session {session_id}")
 
-        # -----------------------------
-        # Embedding (NON-BLOCKING)
-        # -----------------------------
         embedder = get_embedder()
 
         vectors = await asyncio.to_thread(
-            embedder.encode,
+            embedder.embed_documents,
             chunks,
-            show_progress_bar=False
         )
-        vectors = vectors.tolist()
 
-        # -----------------------------
-        # Qdrant setup
-        # -----------------------------
         client = get_qdrant()
 
-        # Dynamically detect embedding dimension
         embedding_dim = len(vectors[0])
 
-        # Create collection if not exists
         try:
             await client.get_collection(session_id)
         except Exception:
@@ -112,9 +91,6 @@ async def ingest_pdf(file_bytes: bytes, session_id: str) -> int:
             )
             logging.info(f"[Ingestion] Created Qdrant collection: {session_id}")
 
-        # -----------------------------
-        # Prepare points
-        # -----------------------------
         points = [
             PointStruct(
                 id=str(uuid.uuid4()),
@@ -128,16 +104,13 @@ async def ingest_pdf(file_bytes: bytes, session_id: str) -> int:
             for i, (chunk, vec) in enumerate(zip(chunks, vectors))
         ]
 
-        # -----------------------------
-        # Upsert to Qdrant
-        # -----------------------------
         try:
             await client.upsert(
                 collection_name=session_id,
                 points=points
             )
         except Exception as e:
-            logging.error(f"[Ingestion] Qdrant upsert failed: {e}")
+            logging.error(f"[Ingestion] Qdrant upsert failed: {e!r}")
             raise
 
         logging.info(f"[Ingestion] Upserted {len(points)} points into '{session_id}'")
@@ -145,5 +118,5 @@ async def ingest_pdf(file_bytes: bytes, session_id: str) -> int:
         return len(points)
 
     except Exception as e:
-        logging.error(f"[Ingestion] Failed for session {session_id}: {e}")
+        logging.error(f"[Ingestion] Failed for session {session_id}: {e!r}")
         raise

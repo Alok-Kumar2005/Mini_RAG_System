@@ -27,3 +27,5 @@ sentence-transformers
 asyncpg
 langgraph-checkpoint-postgres
 psycopg[binary,pool]
+
+langchain-google-genai

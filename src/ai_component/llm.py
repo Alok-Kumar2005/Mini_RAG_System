@@ -12,7 +12,7 @@ from src.exceptions import CustomException
 from src.utils import utils
 
 class LLMClient:
-    def __init__(self, temperature: float = 0.0, max_tokens: int = 4096, max_retries: int = 2):
+    def __init__(self, temperature: float = 0.0, max_tokens: int = 2048, max_retries: int = 2):
         self.api_key = utils.GROQ_API_KEY
         self.model_name = utils.GROQ_MODEL
         self.temperature = temperature
