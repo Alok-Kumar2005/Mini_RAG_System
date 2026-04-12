@@ -2,30 +2,25 @@ langchain
 langgraph
 langchain-core
 langchain-groq
-langchain-community
 langchain-qdrant
 langchain-tavily
+langchain-google-genai
+
 pypdf
 pydantic
 python-dotenv
 qdrant-client
-
-langgraph-checkpoint-sqlite 
-aiosqlite
 
 fastapi
 fastapi[standard]
 uvicorn[standard]
 python-multipart
 sqlalchemy[asyncio]
-aiosqlite
+
 passlib[bcrypt]
 python-jose[cryptography]
 pwdlib[bcrypt]
 
-sentence-transformers
 asyncpg
 langgraph-checkpoint-postgres
 psycopg[binary,pool]
-
-langchain-google-genai

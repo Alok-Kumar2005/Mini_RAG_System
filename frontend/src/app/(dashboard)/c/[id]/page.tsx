@@ -26,7 +26,7 @@ export default function ChatArea({ params }: ComponentProps) {
   const [chatInfo, setChatInfo] = useState<any>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamStatus, setStreamStatus] = useState<string | null>(null);
-  const [summary, setSummary] = useState<string | null>(null);
+
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -35,11 +35,10 @@ export default function ChatArea({ params }: ComponentProps) {
     try {
       const [info, history] = await Promise.all([
         api.get(`/chats/${chatId}`),
-        api.get<{ messages: Message[], summary?: string }>(`/chats/${chatId}/history`)
+        api.get<{ messages: Message[] }>(`/chats/${chatId}/history`)
       ]);
       setChatInfo(info);
       setMessages(history.messages || []);
-      setSummary(history.summary || null);
       scrollToBottom();
     } catch (err) {
       console.error('Failed to load chat data', err);
@@ -122,6 +121,18 @@ export default function ChatArea({ params }: ComponentProps) {
                     }
                     return newMessages;
                   });
+                } else if (data.type === 'retry') {
+                  // LLM is retrying — clear previous attempt's content so only the final answer shows
+                  setMessages((prev) => {
+                    const newMessages = [...prev];
+                    const lastIdx = newMessages.length - 1;
+                    const lastMsg = newMessages[lastIdx];
+                    if (lastMsg && lastMsg.role === 'assistant') {
+                      newMessages[lastIdx] = { ...lastMsg, content: '' };
+                    }
+                    return newMessages;
+                  });
+                  setStreamStatus(`Refining answer (attempt ${data.attempt + 1})…`);
                 } else if (data.type === 'status' && data.message) {
                   setStreamStatus(data.message);
                 }
@@ -179,11 +190,6 @@ export default function ChatArea({ params }: ComponentProps) {
       </div>
 
       <div className="messages-area">
-        {summary && (
-          <div className="summary-banner">
-            <strong>Previous Context Summary:</strong> {summary}
-          </div>
-        )}
         
         {messages.length === 0 ? (
           <div className="empty-chat-state">
@@ -649,20 +655,7 @@ export default function ChatArea({ params }: ComponentProps) {
           padding: 0;
         }
 
-        .summary-banner {
-          padding: 1rem;
-          border-radius: 8px;
-          font-size: 0.85rem;
-          color: var(--text-secondary);
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px dashed var(--panel-border);
-          margin-bottom: 1rem;
-          line-height: 1.5;
-        }
 
-        .summary-banner strong {
-          color: var(--accent-primary);
-        }
       `}</style>
     </div>
   );

@@ -34,7 +34,9 @@ def Workflow(checkpointer = None):
         route_after_query,
         {
             "tools": "tools",
-            "judge_node": "judge_node"
+            "judge_node": "judge_node",
+            "summarizer_node": "summarizer_node",
+            "__end__": END,
         }
     )
     builder.add_edge("tools", "query_node")

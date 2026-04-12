@@ -149,15 +149,26 @@ async def get_history(chat_id: str,db: AsyncSession = Depends(get_db),current_us
  
     channel_values = checkpoint.get("channel_values", {})
     raw_messages = channel_values.get("messages", [])
-    summary = channel_values.get("summarize") or None 
     history = []
-    for m in raw_messages:
+
+    # Build a set of indices for AI messages whose response was rejected
+    # (i.e. immediately followed by a "System Feedback:" human message)
+    rejected_ai_indices = set()
+    for i, m in enumerate(raw_messages):
+        if isinstance(m, HumanMessage) and m.content.startswith("System Feedback:"):
+            # The AI message right before this feedback was a rejected attempt
+            if i > 0 and isinstance(raw_messages[i - 1], AIMessage):
+                rejected_ai_indices.add(i - 1)
+
+    for i, m in enumerate(raw_messages):
         if isinstance(m, HumanMessage):
             if m.content.startswith("System Feedback:"):
                 continue
             history.append({"role": "user", "content": m.content})
         elif isinstance(m, AIMessage):
+            if i in rejected_ai_indices:
+                continue
             history.append({"role": "assistant", "content": m.content})
 
-    return {"messages": history, "summary": summary}
+    return {"messages": history}
  

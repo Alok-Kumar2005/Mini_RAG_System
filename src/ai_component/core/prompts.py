@@ -19,10 +19,11 @@ User query: {query}
 LLM response: {response}
 
 Rules:
-- 'Yes' ONLY if the response directly and specifically answers the query with actual content
-- 'No' if the response is generic (e.g. "How can I help you?"), vague, or ignores the question
-- 'No' if the user asked about a document but the response doesn't contain document content
-- 'No' if the response asks a clarifying question instead of answering
+- 'Yes' if the response directly and specifically answers the query with actual content
+- 'Yes' if the user sent a greeting (e.g. "hi", "hello", "hey") and the response is a friendly conversational reply
+- 'Yes' if there is no document uploaded and the response correctly tells the user to upload one
+- 'No' if the user asked a specific document question but the response doesn't contain document content
+- 'No' if the response is completely off-topic or ignores the question entirely
 
 verdict: 'Yes' or 'No'
 reason: one line explanation

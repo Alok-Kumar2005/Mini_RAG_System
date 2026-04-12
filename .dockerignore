@@ -1,0 +1,42 @@
+.git
+.gitignore
+.venv
+.env
+__pycache__
+*.pyc
+
+# Frontend (separate service)
+frontend/
+
+# Logs & databases
+logs/
+*.db
+*.sqlite
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# IDE & OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Docker & CI
+Dockerfile
+docker-compose*.yml
+render.yaml
+.dockerignore
+
+# Docs
+README.md
+LICENSE
+help.txt
+*.md
+
+# UV / lockfiles (not needed at runtime)
+uv.lock
+.python-version

@@ -1,0 +1,43 @@
+# Render Blueprint — Infrastructure as Code
+# https://render.com/docs/blueprint-spec
+
+services:
+  # ── Backend (FastAPI) ──
+  - type: web
+    name: mini-rag-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama-3.1-8b-instant
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_DATABASE_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false   # Set to your frontend URL, e.g. https://mini-rag-frontend.onrender.com
+
+  # ── Frontend (Next.js) ──
+  - type: web
+    name: mini-rag-frontend
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    plan: free
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        sync: false   # Set to your backend URL, e.g. https://mini-rag-api.onrender.com/api

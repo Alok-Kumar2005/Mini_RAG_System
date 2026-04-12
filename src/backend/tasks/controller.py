@@ -70,6 +70,8 @@ async def _stream_graph_events(chat: Chat, user_message: str) -> AsyncIterator[s
                         query_node_calls += 1
                         if query_node_calls == 1:
                             yield _sse({"type": "status", "message": "Thinking…"})
+                        else:
+                            yield _sse({"type": "status", "message": f"Rethinking (attempt {query_node_calls})…"})
                     elif name == "judge_node":
                         yield _sse({"type": "status", "message": "Evaluating answer quality…"})
                     elif name == "summarizer_node":
