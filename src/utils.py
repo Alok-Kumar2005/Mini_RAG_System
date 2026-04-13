@@ -11,7 +11,7 @@ class Utils:
 
     TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 
-    max_tries: int = 3
+    max_tries: int = 2
 
     QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
     QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", None)
@@ -22,7 +22,7 @@ class Utils:
     ACCESS_TOKEN_EXPIRE_MINUTES = 60*24
 
     MAX_CONTEXT: int = 1500
-    MAX_CONVERSATION: int = 10
+    MAX_CONVERSATION: int = 30
 
     DATABASE_URL = os.getenv("DATABASE_URL")
     DIRECT_DATABASE_URL = os.getenv("DIRECT_DATABASE_URL")
